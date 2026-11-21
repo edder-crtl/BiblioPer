@@ -36,9 +36,10 @@ def crear_token(usuario_id: int) -> str:
 def usuario_actual(token: str = Depends(oauth2), db: Session = Depends(get_db)) -> models.Usuario:
     try:
         datos = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    except jwt.PyJWTError:
+        usuario_id = int(datos["sub"])
+    except (jwt.PyJWTError, KeyError, TypeError, ValueError):
         raise HTTPException(status_code=401, detail="Token inválido o expirado")
-    usuario = db.get(models.Usuario, int(datos["sub"]))
+    usuario = db.get(models.Usuario, usuario_id)
     if not usuario or not usuario.activo:
         raise HTTPException(status_code=401, detail="Usuario no válido")
     return usuario
