@@ -73,8 +73,10 @@ def actualizar_usuario(
     usuario_id: int,
     datos: schemas.UsuarioActualizar,
     db: Session = Depends(get_db),
-    _: models.Usuario = Depends(requiere_roles("administrador", "bibliotecario")),
+    actual: models.Usuario = Depends(requiere_roles("administrador", "bibliotecario")),
 ):
+    if "activo" in datos.model_dump(exclude_unset=True) and actual.rol != "administrador":
+        raise HTTPException(status_code=403, detail="Solo el administrador puede cambiar el estado de un usuario")
     return crud.actualizar_usuario(db, usuario_id, datos)
 
 
@@ -82,8 +84,11 @@ def actualizar_usuario(
 def desactivar_usuario(
     usuario_id: int,
     db: Session = Depends(get_db),
-    _: models.Usuario = Depends(requiere_roles("administrador", "bibliotecario")),
+    actual: models.Usuario = Depends(requiere_roles("administrador", "bibliotecario")),
 ):
+    objetivo = db.get(models.Usuario, usuario_id)
+    if objetivo and objetivo.rol == "administrador" and actual.rol != "administrador":
+        raise HTTPException(status_code=403, detail="Solo el administrador puede desactivar a un administrador")
     return crud.actualizar_usuario(db, usuario_id, schemas.UsuarioActualizar(activo=False))
 
 
