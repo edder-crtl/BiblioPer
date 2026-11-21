@@ -67,17 +67,17 @@ sistema-biblioteca/
 │   │   ├── models.py        # Modelos de tablas de la base de datos
 │   │   ├── schemas.py       # Esquemas de validación de Pydantic
 │   │   ├── crud.py          # Operaciones directas a la base de datos
-│   │   └── main.py          # Punto de entrada de FastAPI y rutas
-│   ├── requirements.txt     # Dependencias del proyecto Python
-│   └── biblioteca.db        # Base de datos SQLite (generada automáticamente)
+│   │   ├── main.py          # Punto de entrada de FastAPI y rutas
+│   │   └── biblioteca.db    # Base de datos SQLite (generada automáticamente)
+│   └── requirements.txt     # Dependencias del proyecto Python
 │
 └── frontend/
     ├── css/
     │   └── styles.css       # Hoja de estilos global
-    ├── js/
-    │   ├── api.js           # Funciones modularizadas con Fetch API
-    │   └── app.js           # Manejo del DOM y eventos
-    └── index.html           # Interfaz principal de usuario
+    └── js/
+        ├── api.js           # Funciones modularizadas con Fetch API
+        ├── app.js           # Manejo del DOM y eventos
+        └── index.html       # Interfaz principal de usuario
 ```
 
 ## 6. Instrucciones de instalación y ejecución
@@ -93,8 +93,8 @@ sistema-biblioteca/
 1. Clonar el repositorio:
 
    ```bash
-   git clone <URL-DEL-REPOSITORIO>
-   cd biblioper
+   git clone https://github.com/edder-crtl/BiblioPer.git
+   cd BiblioPer/sistema-biblioteca
    ```
 
 2. Crear y activar un entorno virtual:
@@ -128,13 +128,13 @@ La API quedará disponible en `http://127.0.0.1:8000` y la documentación intera
 
 ### Ejecución del frontend
 
-Desde la carpeta `frontend/`, abrir `index.html` en el navegador o, preferiblemente, servirlo con un servidor local:
+Desde la carpeta `frontend/`, abrir `js/index.html` en el navegador o, preferiblemente, servirlo con un servidor local:
 
 ```bash
 python -m http.server 5500
 ```
 
-Luego ingresar a `http://localhost:5500`.
+Luego ingresar a `http://localhost:5500/js/index.html`.
 
 ## 7. Estrategia de ramas y convención de commits
 
