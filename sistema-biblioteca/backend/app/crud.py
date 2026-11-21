@@ -109,6 +109,8 @@ def eliminar_libro(db: Session, libro_id: int) -> None:
     for ejemplar in libro.ejemplares:
         if ejemplar.prestamos:
             raise ReglaNegocio("No se puede eliminar un libro con historial de préstamos")
+    if libro.reservas:
+        raise ReglaNegocio("No se puede eliminar un libro con reservas")
     db.delete(libro)
     db.commit()
 
