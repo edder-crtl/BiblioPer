@@ -129,3 +129,35 @@ def agregar_ejemplar(
     _: models.Usuario = Depends(requiere_roles("administrador", "bibliotecario")),
 ):
     return crud.agregar_ejemplar(db, libro_id, datos)
+
+# ---------- Préstamos y multas ----------
+@app.post("/prestamos", response_model=schemas.PrestamoOut, status_code=201)
+def registrar_prestamo(
+    datos: schemas.PrestamoCrear,
+    db: Session = Depends(get_db),
+    actual: models.Usuario = Depends(requiere_roles("bibliotecario", "administrador")),
+):
+    return crud.registrar_prestamo(db, datos, actual.id)
+
+
+@app.put("/prestamos/{prestamo_id}/devolucion", response_model=schemas.PrestamoOut)
+def registrar_devolucion(
+    prestamo_id: int,
+    db: Session = Depends(get_db),
+    _: models.Usuario = Depends(requiere_roles("bibliotecario", "administrador")),
+):
+    return crud.registrar_devolucion(db, prestamo_id)
+
+
+@app.get("/prestamos/mis", response_model=list[schemas.PrestamoOut])
+def mi_historial(db: Session = Depends(get_db), actual: models.Usuario = Depends(usuario_actual)):
+    return crud.historial_prestamos(db, actual.id)
+
+
+@app.put("/multas/{multa_id}/pagar", response_model=schemas.MultaOut)
+def pagar_multa(
+    multa_id: int,
+    db: Session = Depends(get_db),
+    _: models.Usuario = Depends(requiere_roles("bibliotecario", "administrador")),
+):
+    return crud.pagar_multa(db, multa_id)

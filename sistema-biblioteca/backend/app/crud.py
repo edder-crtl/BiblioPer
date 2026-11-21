@@ -123,3 +123,95 @@ def agregar_ejemplar(db: Session, libro_id: int, datos: schemas.EjemplarCrear):
     db.commit()
     db.refresh(ejemplar)
     return ejemplar
+# ---------- Préstamos, devoluciones y multas ----------
+def notificar(correo: str, mensaje: str) -> None:
+    # Pendiente: reemplazar por el servicio de correo (RF-10)
+    print(f"[NOTIFICACIÓN] {correo}: {mensaje}")
+
+
+def registrar_prestamo(db: Session, datos: schemas.PrestamoCrear, bibliotecario_id: int):
+    lector = obtener_usuario_por_documento(db, datos.documento)
+    if not lector or lector.rol != "lector" or not lector.activo:
+        raise ReglaNegocio("Lector no encontrado o inactivo")
+
+    multas_pendientes = (
+        db.query(models.Multa)
+        .join(models.Prestamo)
+        .filter(models.Prestamo.usuario_id == lector.id, models.Multa.pagada.is_(False))
+        .count()
+    )
+    if multas_pendientes:
+        raise ReglaNegocio("El lector tiene multas pendientes")
+
+    activos = db.query(models.Prestamo).filter_by(usuario_id=lector.id, estado="activo").count()
+    if activos >= MAX_PRESTAMOS:
+        raise ReglaNegocio(f"El lector alcanzó el límite de {MAX_PRESTAMOS} préstamos")
+
+    ejemplar = db.query(models.Ejemplar).filter_by(codigo=datos.codigo_ejemplar).first()
+    if not ejemplar:
+        raise ReglaNegocio("Ejemplar no encontrado")
+    if ejemplar.estado != "disponible":
+        raise ReglaNegocio("El ejemplar no está disponible")
+
+    ahora = datetime.now()
+    prestamo = models.Prestamo(
+        fecha_prestamo=ahora,
+        fecha_vencimiento=ahora + timedelta(days=DIAS_PRESTAMO),
+        usuario_id=lector.id,
+        bibliotecario_id=bibliotecario_id,
+        ejemplar_id=ejemplar.id,
+    )
+    ejemplar.estado = "prestado"
+    db.add(prestamo)
+    db.commit()
+    db.refresh(prestamo)
+    return prestamo
+
+
+def registrar_devolucion(db: Session, prestamo_id: int):
+    prestamo = db.get(models.Prestamo, prestamo_id)
+    if not prestamo or prestamo.estado != "activo":
+        raise ReglaNegocio("Préstamo activo no encontrado")
+
+    ahora = datetime.now()
+    prestamo.fecha_devolucion = ahora
+    prestamo.estado = "devuelto"
+    prestamo.ejemplar.estado = "disponible"
+
+    dias_retraso = (ahora.date() - prestamo.fecha_vencimiento.date()).days
+    if dias_retraso > 0:
+        db.add(models.Multa(valor=dias_retraso * VALOR_MULTA_DIA, prestamo_id=prestamo.id))
+
+    # Avisar al primero de la cola de reservas (CU-05)
+    siguiente = (
+        db.query(models.Reserva)
+        .filter_by(libro_id=prestamo.ejemplar.libro_id, estado="pendiente")
+        .order_by(models.Reserva.fecha_reserva)
+        .first()
+    )
+    if siguiente:
+        siguiente.estado = "notificada"
+        notificar(siguiente.usuario.correo, f"El libro '{prestamo.ejemplar.libro.titulo}' ya está disponible")
+
+    db.commit()
+    db.refresh(prestamo)
+    return prestamo
+
+
+def historial_prestamos(db: Session, usuario_id: int):
+    return (
+        db.query(models.Prestamo)
+        .filter_by(usuario_id=usuario_id)
+        .order_by(models.Prestamo.fecha_prestamo.desc())
+        .all()
+    )
+
+
+def pagar_multa(db: Session, multa_id: int):
+    multa = db.get(models.Multa, multa_id)
+    if not multa:
+        raise ReglaNegocio("Multa no encontrada")
+    multa.pagada = True
+    db.commit()
+    db.refresh(multa)
+    return multa
