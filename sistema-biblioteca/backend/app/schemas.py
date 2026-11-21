@@ -1,9 +1,18 @@
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import AfterValidator, BaseModel, ConfigDict
 
 Rol = Literal["administrador", "bibliotecario", "lector"]
+
+
+def validar_contrasena(valor: str) -> str:
+    if len(valor.encode("utf-8")) > 72:
+        raise ValueError("La contraseña no puede superar los 72 bytes")
+    return valor
+
+
+Contrasena = Annotated[str, AfterValidator(validar_contrasena)]
 
 
 class Token(BaseModel):
@@ -16,14 +25,14 @@ class UsuarioCrear(BaseModel):
     nombre: str
     documento: str
     correo: str
-    contrasena: str
+    contrasena: Contrasena
     rol: Rol = "lector"
 
 
 class UsuarioActualizar(BaseModel):
     nombre: Optional[str] = None
     correo: Optional[str] = None
-    contrasena: Optional[str] = None
+    contrasena: Optional[Contrasena] = None
     activo: Optional[bool] = None
 
 
