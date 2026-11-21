@@ -161,3 +161,28 @@ def pagar_multa(
     _: models.Usuario = Depends(requiere_roles("bibliotecario", "administrador")),
 ):
     return crud.pagar_multa(db, multa_id)
+
+# ---------- Reservas ----------
+@app.post("/reservas", response_model=schemas.ReservaOut, status_code=201)
+def reservar_libro(
+    datos: schemas.ReservaCrear,
+    db: Session = Depends(get_db),
+    actual: models.Usuario = Depends(requiere_roles("lector")),
+):
+    return crud.crear_reserva(db, actual.id, datos.libro_id)
+
+
+# ---------- Reportes (solo administrador) ----------
+@app.get("/reportes/prestamos-activos", response_model=list[schemas.PrestamoOut])
+def reporte_activos(db: Session = Depends(get_db), _=Depends(requiere_roles("administrador"))):
+    return crud.reporte_prestamos_activos(db)
+
+
+@app.get("/reportes/mas-prestados")
+def reporte_mas_prestados(db: Session = Depends(get_db), _=Depends(requiere_roles("administrador"))):
+    return crud.reporte_mas_prestados(db)
+
+
+@app.get("/reportes/morosos", response_model=list[schemas.UsuarioOut])
+def reporte_morosos(db: Session = Depends(get_db), _=Depends(requiere_roles("administrador"))):
+    return crud.reporte_morosos(db)

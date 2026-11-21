@@ -123,6 +123,7 @@ def agregar_ejemplar(db: Session, libro_id: int, datos: schemas.EjemplarCrear):
     db.commit()
     db.refresh(ejemplar)
     return ejemplar
+
 # ---------- Préstamos, devoluciones y multas ----------
 def notificar(correo: str, mensaje: str) -> None:
     # Pendiente: reemplazar por el servicio de correo (RF-10)
@@ -215,3 +216,47 @@ def pagar_multa(db: Session, multa_id: int):
     db.commit()
     db.refresh(multa)
     return multa
+
+# ---------- Reservas ----------
+def crear_reserva(db: Session, usuario_id: int, libro_id: int):
+    libro = db.get(models.Libro, libro_id)
+    if not libro:
+        raise ReglaNegocio("Libro no encontrado")
+    if any(e.estado == "disponible" for e in libro.ejemplares):
+        raise ReglaNegocio("Hay ejemplares disponibles, solicita el préstamo directamente")
+    if db.query(models.Reserva).filter_by(usuario_id=usuario_id, libro_id=libro_id, estado="pendiente").first():
+        raise ReglaNegocio("Ya tienes una reserva pendiente de este libro")
+    reserva = models.Reserva(usuario_id=usuario_id, libro_id=libro_id)
+    db.add(reserva)
+    db.commit()
+    db.refresh(reserva)
+    return reserva
+
+
+# ---------- Reportes ----------
+def reporte_prestamos_activos(db: Session):
+    return db.query(models.Prestamo).filter_by(estado="activo").all()
+
+
+def reporte_mas_prestados(db: Session, limite: int = 10):
+    filas = (
+        db.query(models.Libro.id, models.Libro.titulo, func.count(models.Prestamo.id))
+        .join(models.Ejemplar, models.Ejemplar.libro_id == models.Libro.id)
+        .join(models.Prestamo, models.Prestamo.ejemplar_id == models.Ejemplar.id)
+        .group_by(models.Libro.id)
+        .order_by(func.count(models.Prestamo.id).desc())
+        .limit(limite)
+        .all()
+    )
+    return [{"libro_id": f[0], "titulo": f[1], "total_prestamos": f[2]} for f in filas]
+
+
+def reporte_morosos(db: Session):
+    return (
+        db.query(models.Usuario)
+        .join(models.Prestamo, models.Prestamo.usuario_id == models.Usuario.id)
+        .filter(models.Prestamo.estado == "activo", models.Prestamo.fecha_vencimiento < datetime.now())
+        .distinct()
+        .all()
+    )
+
